@@ -17,7 +17,7 @@
             <h1 class="text-primary">Exam results</h1>
             <p class="lead">Review the answers and try again when you are ready.</p>
           {% endif %}
-          <p class="fs-4">Score: <strong>{{ score }}%</strong> ({{ correct }} of {{ total }} correct)</p>
+          <p class="fs-4">Score: <strong>{{ grade }}%</strong> ({{ total_user }} of {{ total }} points)</p>
           <h2 class="h4 mt-4">Exam results</h2>
           <ol class="list-group list-group-numbered">
             {% for result in results %}
@@ -45,7 +45,7 @@
               </li>
             {% endfor %}
           </ol>
-          <a class="btn btn-outline-primary mt-4" href="{% url 'course_details' results.0.question.course_id %}">
+          <a class="btn btn-outline-primary mt-4" href="{% url 'course_details' course.id %}">
             Return to course
           </a>
         </div>

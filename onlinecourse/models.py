@@ -120,7 +120,13 @@ class Submission(models.Model):
         on_delete=models.CASCADE,
     )
     choices = models.ManyToManyField(Choice, blank=True)
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="submissions")
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="submissions",
+        null=True,
+        blank=True,
+    )
     selected_choice = models.ForeignKey(
         Choice,
         on_delete=models.SET_NULL,

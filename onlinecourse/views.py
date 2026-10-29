@@ -1,7 +1,4 @@
-import uuid
-
-from django.db import transaction
-from django.http import Http404, HttpResponseBadRequest
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -30,11 +27,10 @@ def submit(request, course_id):
     if not questions:
         return HttpResponseBadRequest("This course does not have any exam questions.")
 
-    answers = {}
+    selected_choices = []
     for question in questions:
         choice_ids = request.POST.getlist(f"question_{question.pk}")
         if not choice_ids:
-            answers[question.pk] = []
             continue
         try:
             choices = list(Choice.objects.filter(question=question, pk__in=choice_ids))
@@ -42,74 +38,75 @@ def submit(request, course_id):
             return HttpResponseBadRequest("One or more selected answers are invalid.")
         if len(choices) != len(set(choice_ids)):
             return HttpResponseBadRequest("One or more selected answers are invalid.")
-        answers[question.pk] = choices
+        selected_choices.extend(choices)
 
-    attempt_id = uuid.uuid4()
-    with transaction.atomic():
-        user = request.user if request.user.is_authenticated else None
-        enrollment, _ = Enrollment.objects.get_or_create(user=user, course=course)
-        for question in questions:
-            submission = Submission.objects.create(
-                attempt_id=attempt_id,
-                user=user,
-                enrollment=enrollment,
-                question=question,
-                selected_choice=answers[question.pk][0] if answers[question.pk] else None,
-            )
-            submission.choices.set(answers[question.pk])
-    return redirect("show_exam_result", attempt_id=attempt_id)
-
-
-def show_exam_result(request, attempt_id):
-    try:
-        attempt_id = uuid.UUID(str(attempt_id))
-    except ValueError as exc:
-        raise Http404("Exam attempt not found.") from exc
-
-    submissions = list(
-        Submission.objects.filter(attempt_id=attempt_id)
-        .select_related("question__lesson", "selected_choice", "enrollment__course")
-        .prefetch_related("choices")
-        .order_by("question__lesson__order", "question__order", "question_id")
+    user = request.user if request.user.is_authenticated else None
+    enrollment, _ = Enrollment.objects.get_or_create(user=user, course=course)
+    submission = Submission.objects.create(
+        enrollment=enrollment,
+        user=user,
     )
-    if not submissions:
-        raise Http404("Exam attempt not found.")
+    submission.choices.set(selected_choices)
+    return redirect("show_exam_result", course_id=course.pk, submission_id=submission.pk)
 
-    submission_by_question = {submission.question_id: submission for submission in submissions}
-    questions = Question.objects.filter(
-        course=submissions[0].enrollment.course
-    ).prefetch_related("choices").order_by("lesson__order", "order", "id")
+
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(
+        Submission.objects.select_related("enrollment__course").prefetch_related("choices"),
+        pk=submission_id,
+        enrollment__course=course,
+    )
+    questions = list(
+        course.questions.prefetch_related("choices").order_by("lesson__order", "order", "id")
+    )
+    selected_ids = set(submission.choices.values_list("id", flat=True))
     results = []
+    total = 0
+    total_user = 0
+    q_results = {}
+    c_submits = {}
+    c_results = {}
     for question in questions:
-        submission = submission_by_question.get(question.pk)
-        selected_choices = list(submission.choices.all()) if submission else []
-        if not selected_choices and submission and submission.selected_choice_id:
-            selected_choices = [submission.selected_choice]
-        selected_ids = [choice.pk for choice in selected_choices]
+        question_choices = list(question.choices.all())
+        question_selected_ids = selected_ids.intersection(
+            choice.pk for choice in question_choices
+        )
+        is_correct = question.is_get_score(question_selected_ids)
+        question_score = question.grade if is_correct else 0
+        q_results[question.pk] = question_score
+        total += question.grade
+        total_user += question_score
+        for choice in question_choices:
+            is_selected = choice.pk in question_selected_ids
+            c_submits[choice.pk] = is_selected
+            c_results[choice.pk] = is_selected == choice.is_correct
         results.append(
             {
                 "question": question,
-                "selected_choices": selected_choices,
-                "correct_choices": [choice for choice in question.choices.all() if choice.is_correct],
-                "is_correct": question.is_get_score(selected_ids),
+                "selected_choices": [
+                    choice for choice in question_choices if choice.pk in question_selected_ids
+                ],
+                "correct_choices": [choice for choice in question_choices if choice.is_correct],
+                "is_correct": is_correct,
             }
         )
 
-    total = sum(result["question"].grade for result in results)
-    correct = sum(1 for result in results if result["is_correct"])
-    earned = sum(
-        result["question"].grade
-        for result in results
-        if result["is_correct"]
-    )
-    score = round(earned * 100 / total) if total else 0
+    score = int(total_user * 100 / total) if total else 0
     return render(
         request,
-        "onlinecourse/exam_result.html",
+        "onlinecourse/exam_result_bootstrap.html",
         {
-            "results": results,
-            "correct": correct,
+            "course": course,
+            "submission": submission,
             "total": total,
+            "total_user": total_user,
+            "q_results": q_results,
+            "c_submits": c_submits,
+            "c_results": c_results,
+            "grade": score,
+            "results": results,
+            "correct": sum(1 for result in results if result["is_correct"]),
             "score": score,
             "passed": score >= 70,
         },

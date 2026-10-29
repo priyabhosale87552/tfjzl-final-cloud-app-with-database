@@ -28,15 +28,61 @@ class ExamFlowTests(TestCase):
             {f"question_{self.question.pk}": [str(self.correct.pk)]},
         )
 
-        self.assertRedirects(response, f"/exam-results/{Submission.objects.get().attempt_id}/")
+        submission = Submission.objects.get()
+        self.assertRedirects(
+            response,
+            f"/exam-results/{self.course.pk}/{submission.pk}/",
+        )
         result = self.client.get(response.url)
         self.assertContains(result, "Congratulations!")
         self.assertContains(result, "Score:")
         self.assertContains(result, "100%")
         self.assertContains(result, "Object-relational mapper")
-        submission = Submission.objects.get()
         self.assertEqual(submission.enrollment.course, self.course)
+        self.assertIsNone(submission.question)
         self.assertEqual(list(submission.choices.all()), [self.correct])
+        self.assertEqual(result.context["q_results"], {self.question.pk: self.question.grade})
+        self.assertEqual(result.context["c_submits"][self.correct.pk], True)
+        self.assertEqual(result.context["c_results"][self.correct.pk], True)
+
+    def test_result_rejects_submission_from_another_course(self):
+        response = self.client.post(
+            reverse("submit", args=(self.course.pk,)),
+            {f"question_{self.question.pk}": [str(self.correct.pk)]},
+        )
+        submission = Submission.objects.get()
+        other_course = Course.objects.create(name="Different course")
+
+        result = self.client.get(
+            reverse("show_exam_result", args=(other_course.pk, submission.pk))
+        )
+
+        self.assertEqual(result.status_code, 404)
+
+    def test_result_context_scores_all_course_questions(self):
+        second_question = Question.objects.create(
+            course=self.course,
+            lesson=self.question.lesson,
+            question_text="How many points is this question worth?",
+            grade=2,
+            order=2,
+        )
+        Choice.objects.create(
+            question=second_question,
+            choice_text="Two points",
+            is_correct=True,
+        )
+        response = self.client.post(
+            reverse("submit", args=(self.course.pk,)),
+            {f"question_{self.question.pk}": [str(self.correct.pk)]},
+        )
+
+        result = self.client.get(response.url)
+
+        self.assertEqual(result.context["total"], 3)
+        self.assertEqual(result.context["total_user"], 1)
+        self.assertEqual(result.context["grade"], 33)
+        self.assertEqual(result.context["q_results"], {self.question.pk: 1, second_question.pk: 0})
 
     def test_submit_rejects_a_choice_from_another_question(self):
         other_question = Question.objects.create(
