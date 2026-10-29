@@ -6,6 +6,7 @@ from .models import Choice, Course, Enrollment, Instructor, Lesson, Question, Su
 class QuestionInline(admin.TabularInline):
     model = Question
     extra = 1
+    fields = ("question_text", "course", "grade", "order")
 
 
 class ChoiceInline(admin.TabularInline):
@@ -15,8 +16,8 @@ class ChoiceInline(admin.TabularInline):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("prompt", "lesson", "order")
-    list_filter = ("lesson__course",)
+    list_display = ("question_text", "course", "grade", "lesson", "order")
+    list_filter = ("course",)
     inlines = (ChoiceInline,)
 
 

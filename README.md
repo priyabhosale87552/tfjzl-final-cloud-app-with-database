@@ -15,6 +15,8 @@ python manage.py runserver
 
 Open `/admin/` to add courses, lessons, questions, and answer choices. Open `/courses/<course-id>/` to view a course and take its assessment.
 
+Assessment questions store `question_text` and a grade, and `is_get_score()` checks a submitted set of answer IDs against the correct choices. Submissions are associated with an enrollment and their selected choices.
+
 ## Verify
 
 ```powershell

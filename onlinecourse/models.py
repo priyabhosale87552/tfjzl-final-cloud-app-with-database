@@ -22,7 +22,12 @@ class Course(models.Model):
 
 
 class Enrollment(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="enrollments")
     enrolled_at = models.DateTimeField(auto_now_add=True)
 
@@ -50,23 +55,35 @@ class Lesson(models.Model):
 
 class Question(models.Model):
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="questions")
-    prompt = models.TextField()
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    question_text = models.TextField()
+    grade = models.PositiveIntegerField(default=1)
     order = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ("order", "id")
 
     def __str__(self):
-        return self.prompt
+        return self.question_text
+
+    def is_get_score(self, selected_ids):
+        correct_ids = set(
+            self.choices.filter(is_correct=True).values_list("id", flat=True)
+        )
+        return bool(correct_ids) and correct_ids == {int(choice_id) for choice_id in selected_ids}
 
 
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choices")
-    text = models.CharField(max_length=500)
+    choice_text = models.CharField(max_length=500)
     is_correct = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.text
+        return self.choice_text
 
 
 class Submission(models.Model):
@@ -78,6 +95,11 @@ class Submission(models.Model):
         blank=True,
         related_name="exam_submissions",
     )
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+    )
+    choices = models.ManyToManyField(Choice, blank=True)
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="submissions")
     selected_choice = models.ForeignKey(
         Choice,
@@ -89,4 +111,4 @@ class Submission(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Attempt {self.attempt_id}: {self.question}"
+        return f"Submission {self.id} for enrollment {self.enrollment_id}"

@@ -20,28 +20,32 @@
           <p class="fs-4">Score: <strong>{{ score }}%</strong> ({{ correct }} of {{ total }} correct)</p>
           <h2 class="h4 mt-4">Exam results</h2>
           <ol class="list-group list-group-numbered">
-            {% for submission in submissions %}
+            {% for result in results %}
               <li class="list-group-item">
-                <p class="mb-1">{{ submission.question.prompt }}</p>
-                {% if submission.selected_choice %}
-                  <p class="mb-1">Your answer: {{ submission.selected_choice.text }}</p>
+                <p class="mb-1">{{ result.question.question_text }}</p>
+                {% if result.selected_choices %}
+                  <p class="mb-1">Your answer:
+                    {% for choice in result.selected_choices %}
+                      {{ choice.choice_text }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  </p>
                 {% else %}
                   <p class="mb-1 text-muted">Your answer: Not answered</p>
                 {% endif %}
-                {% if submission.selected_choice.is_correct %}
+                {% if result.is_correct %}
                   <span class="badge text-bg-success">Correct</span>
                 {% else %}
                   <span class="badge text-bg-danger">Incorrect</span>
-                  {% for choice in submission.question.choices.all %}
-                    {% if choice.is_correct %}
-                      <p class="mb-0 mt-1">Correct answer: {{ choice.text }}</p>
-                    {% endif %}
-                  {% endfor %}
+                  <p class="mb-0 mt-1">Correct answer:
+                    {% for choice in result.correct_choices %}
+                      {{ choice.choice_text }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  </p>
                 {% endif %}
               </li>
             {% endfor %}
           </ol>
-          <a class="btn btn-outline-primary mt-4" href="{% url 'course_details' submissions.0.question.lesson.course_id %}">
+          <a class="btn btn-outline-primary mt-4" href="{% url 'course_details' results.0.question.course_id %}">
             Return to course
           </a>
         </div>
