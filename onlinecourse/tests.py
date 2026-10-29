@@ -1,7 +1,9 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Choice, Course, Lesson, Question, Submission
+from django.contrib import admin
+
+from .models import Choice, Course, Learner, Lesson, Question, Submission
 
 
 class ExamFlowTests(TestCase):
@@ -109,3 +111,10 @@ class ExamFlowTests(TestCase):
             str(submission),
             f"Submission {submission.pk} for enrollment {submission.enrollment_id}",
         )
+
+
+class AdminRegistrationTests(TestCase):
+    def test_rubric_models_are_registered(self):
+        for model in (Choice, Course, Learner, Lesson, Question, Submission):
+            with self.subTest(model=model.__name__):
+                self.assertIn(model, admin.site._registry)

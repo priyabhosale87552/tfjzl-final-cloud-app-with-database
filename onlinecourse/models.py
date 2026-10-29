@@ -12,6 +12,26 @@ class Instructor(models.Model):
         return self.user.get_full_name() or self.user.get_username()
 
 
+class Learner(models.Model):
+    STUDENT = "student"
+    DEVELOPER = "developer"
+    DATA_SCIENTIST = "data_scientist"
+    DATABASE_ADMIN = "dba"
+    OCCUPATION_CHOICES = (
+        (STUDENT, "Student"),
+        (DEVELOPER, "Developer"),
+        (DATA_SCIENTIST, "Data Scientist"),
+        (DATABASE_ADMIN, "Database Admin"),
+    )
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    occupation = models.CharField(max_length=20, choices=OCCUPATION_CHOICES, default=STUDENT)
+    social_link = models.URLField(max_length=200, blank=True)
+
+    def __str__(self):
+        return f"{self.user.get_username()}, {self.occupation}"
+
+
 class Course(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
