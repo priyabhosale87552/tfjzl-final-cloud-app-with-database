@@ -10,7 +10,7 @@ from .models import Choice, Course, Enrollment, Question, Submission
 
 def course_details(request, course_id):
     course = get_object_or_404(
-        Course.objects.prefetch_related("lessons__questions__choices"),
+        Course.objects.prefetch_related("lesson_set__questions__choices"),
         pk=course_id,
     )
     questions = list(course.questions.prefetch_related("choices").order_by("lesson__order", "order", "id"))

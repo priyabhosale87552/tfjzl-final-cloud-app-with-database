@@ -15,7 +15,7 @@
 
       <section class="mb-5" aria-labelledby="lessons-heading">
         <h2 id="lessons-heading">Course lessons</h2>
-        {% for lesson in course.lessons.all %}
+        {% for lesson in course.lesson_set.all %}
           <article class="card mb-3">
             <div class="card-body">
               <h3 class="h5">{{ lesson.order }}. {{ lesson.title }}</h3>

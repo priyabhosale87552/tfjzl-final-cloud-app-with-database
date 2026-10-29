@@ -64,6 +64,7 @@ class ExamFlowTests(TestCase):
         self.assertContains(response, "Django fundamentals")
         self.assertContains(response, "Models")
         self.assertContains(response, "What does ORM mean?")
+        self.assertEqual(list(self.course.lesson_set.all()), [self.question.lesson])
 
     def test_submit_requires_post(self):
         response = self.client.get(reverse("submit", args=(self.course.pk,)))
